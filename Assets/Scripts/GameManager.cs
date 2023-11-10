@@ -25,12 +25,13 @@ public class GameManager : MonoBehaviour
     private static uint RowAmountStatic = 0;
 
     public int N = 4;
+    private static int NStatic;
 
     private GameObject board;
     private static ConnectGameGrid ConnectGameGridObj;
-    private uint ColumnAmount;
+    private static uint ColumnAmount;
     
-    private int[,] GridDisks;
+    private static int[,] GridDisks;
     private static int[] ColumnCount;
 
     private bool isDropping = false;
@@ -45,10 +46,17 @@ public class GameManager : MonoBehaviour
         LocalPVP
     }
 
+    public enum AIDifficulty
+    {
+        Random,
+        SemiRandom
+    }
+
 
     void Awake()
     {
         RowAmountStatic = RowAmount;
+        NStatic = N;
 
         Disks.Clear();
         Disks.AddRange(Prefabs.Select(prefab =>  prefab.GetComponent<Disk>()).ToList());
@@ -82,13 +90,18 @@ public class GameManager : MonoBehaviour
         return FilledAmount < RowAmountStatic;
     }
 
+    private static IEnumerable<int> RetValidMoves()
+    {
+        return ColumnCount.Select((e, index) => index).Where(x => IsValidMove(x));
+    }
+
     private static int RetRandCol()
     {
-        var filteredIdxs = ColumnCount.Select((e, index) => index).Where(x => IsValidMove(x));
-        Debug.Assert(filteredIdxs.Count() > 0);
+        var ValidMoves = RetValidMoves();
+        Debug.Assert(ValidMoves.Count() > 0);
 
-        int RandIndex = new System.Random().Next(0, filteredIdxs.Count());
-        return filteredIdxs.ElementAt(RandIndex);
+        int RandIndex = new System.Random().Next(0, ValidMoves.Count());
+        return ValidMoves.ElementAt(RandIndex);
     }
 
     private interface Player
@@ -98,9 +111,40 @@ public class GameManager : MonoBehaviour
 
     private class ComputerPlayer : Player
     {
+        int idx;
+        AIDifficulty diff;
+
+        public ComputerPlayer(int idx)
+        {
+            this.idx = idx;
+            this.diff = AIDifficulty.Random;
+        }
+
+        public ComputerPlayer(int idx, AIDifficulty diff)
+        {
+            this.idx = idx;
+            this.diff = diff;
+        }
+
         public async Task<int> act()
         {
-            return RetRandCol();
+            switch (diff)
+            {
+                case (AIDifficulty.Random):
+                    return RetRandCol();
+                case (AIDifficulty.SemiRandom):
+                    IEnumerable<int> ValidMoves = RetValidMoves();
+                    foreach(int move in ValidMoves)
+                    {
+                        if (CheckWinCondition(ColumnCount[move], move, idx))
+                            return move;
+                    }
+                    return RetRandCol();
+                default:
+                    return RetRandCol();
+
+            }
+            
         }
     }
 
@@ -167,14 +211,14 @@ public class GameManager : MonoBehaviour
     }
     */
 
-    private bool CheckWinConditionVertical(int row, int col, int player)
+    private static bool CheckWinConditionVertical(int row, int col, int player)
     {
         // Check Vertical
         bool vertical = true;
-        int targetRow = row - N + 1;
+        int targetRow = row - NStatic + 1;
         if (targetRow >= 0)
         {
-            for (int i = 1; i < N; i++)
+            for (int i = 1; i < NStatic; i++)
                 if (GridDisks[row - i, col] != player)
                 {
                     vertical = false;
@@ -187,21 +231,21 @@ public class GameManager : MonoBehaviour
         return vertical;
     }
 
-    private bool CheckWinConditionHead(int row, int col, int player)
+    private static bool CheckWinConditionHead(int row, int col, int player)
     {
         /*
          * Check Win Condition, return -1 if win condition didn't happen yet - otherwise return winner index
          */
 
-        int targetRow = row - N + 1;
+        int targetRow = row - NStatic + 1;
 
         // Check Horizontal Left
         bool horizontalLeft = true;
-        int targetCol = col + N - 1;
+        int targetCol = col + NStatic - 1;
 
         if (targetCol < ColumnAmount)
         {
-            for (int i = 0; i < N; i++)
+            for (int i = 0; i < NStatic; i++)
                 if (GridDisks[row, col+i] != player)
                 {
                     horizontalLeft = false;
@@ -219,11 +263,11 @@ public class GameManager : MonoBehaviour
 
         // Check Horizontal Right
         bool horizontalRight = true;
-        targetCol = col - N + 1;
+        targetCol = col - NStatic + 1;
 
         if (targetCol >= 0)
         {
-            for (int i = 0; i < N; i++)
+            for (int i = 0; i < NStatic; i++)
                 if (GridDisks[row, col - i] != player)
                 {
                     horizontalRight = false;
@@ -241,11 +285,11 @@ public class GameManager : MonoBehaviour
 
         // Check Diagonal Left
         bool diagonalLeft = true;
-        targetRow = row - N + 1;
-        targetCol = col - N + 1;
+        targetRow = row - NStatic + 1;
+        targetCol = col - NStatic + 1;
         if (targetRow >= 0 && targetCol >= 0)
         {
-            for (int i = 0; i < N; i++)
+            for (int i = 0; i < NStatic; i++)
                 if (GridDisks[row - i, col -i] != player)
                 {
                     diagonalLeft = false;
@@ -263,11 +307,11 @@ public class GameManager : MonoBehaviour
 
         // Check Diagonal right
         bool diagonalRight = true;
-        targetRow = row - N + 1;
-        targetCol = col + N + 1;
+        targetRow = row - NStatic + 1;
+        targetCol = col + NStatic + 1;
         if (targetRow >= 0 && targetCol < ColumnAmount)
         {
-            for (int i = 0; i < N; i++)
+            for (int i = 0; i < NStatic; i++)
                 if (GridDisks[row - i, col + i] != player)
                 {
                     diagonalRight = false;
@@ -292,7 +336,7 @@ public class GameManager : MonoBehaviour
         //return vertical || horizontalLeft || horizontalRight || diagonalLeft || diagonalRight;
     }
 
-    private bool CheckWinCondition(int row, int col, int player)
+    private static bool CheckWinCondition(int row, int col, int player)
     {
         bool vertical = CheckWinConditionVertical(row, col, player);
         if (vertical)
@@ -301,12 +345,12 @@ public class GameManager : MonoBehaviour
             return true;
         }
 
-        int margin = (int) Math.Ceiling((double) N / 2);
+        int margin = (int) Math.Ceiling((double) NStatic / 2);
 
         int MarginColPos = (int) Math.Min(col + margin, ColumnAmount - 1);
         int MarginColNeg = (int) Math.Max(col - margin, 0);
 
-        int MarginRowPos = (int)Math.Min(row + margin, RowAmount - 1);
+        int MarginRowPos = (int)Math.Min(row + margin, RowAmountStatic - 1);
         int MarginRowNeg = (int)Math.Max(row - margin, 0);
 
         bool flag;
@@ -369,8 +413,8 @@ public class GameManager : MonoBehaviour
         Players.Clear();
         if (gt == GameType.COM)
         {
-            Players.Add(new ComputerPlayer());
-            Players.Add(new ComputerPlayer());
+            Players.Add(new ComputerPlayer(0, AIDifficulty.SemiRandom));
+            Players.Add(new ComputerPlayer(1, AIDifficulty.SemiRandom));
         }
         else if (gt == GameType.LocalPVP)
         {
