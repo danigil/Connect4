@@ -130,15 +130,19 @@ public class GameManager : MonoBehaviour
         }
     }
     /*
-    private bool CheckWinFlat(int headPrimary, int headSecondary, bool sub, bool row, int player)
+    private bool CheckWinFlat(int headPrimary, int headSecondary, bool sub, char mode, int player)
     {
+        /*
+         * mode = 'v' / 'h' / 'd' - vertical, horizontal, diagonal
+         */ /*
         bool flag = true;
         int target;
-        int amount = row ? (int) RowAmount : (int) ColumnAmount;
+        int amount = mode == 'v' ? (int) RowAmount : (int) ColumnAmount;
         bool inBounds;
         if (sub)
         {
             target = headPrimary - N + 1;
+            targetSecondary = 
             inBounds = target >= 0;
         }
         else
@@ -162,12 +166,9 @@ public class GameManager : MonoBehaviour
 
     }
     */
-    private bool CheckWinCondition(int row, int col, int player)
-    {
-        /*
-         * Check Win Condition, return -1 if win condition didn't happen yet - otherwise return winner index
-         */
 
+    private bool CheckWinConditionVertical(int row, int col, int player)
+    {
         // Check Vertical
         bool vertical = true;
         int targetRow = row - N + 1;
@@ -183,13 +184,24 @@ public class GameManager : MonoBehaviour
         else
             vertical = false;
 
+        return vertical;
+    }
+
+    private bool CheckWinConditionHead(int row, int col, int player)
+    {
+        /*
+         * Check Win Condition, return -1 if win condition didn't happen yet - otherwise return winner index
+         */
+
+        int targetRow = row - N + 1;
+
         // Check Horizontal Left
         bool horizontalLeft = true;
         int targetCol = col + N - 1;
 
         if (targetCol < ColumnAmount)
         {
-            for (int i = 1; i < N; i++)
+            for (int i = 0; i < N; i++)
                 if (GridDisks[row, col+i] != player)
                 {
                     horizontalLeft = false;
@@ -199,13 +211,19 @@ public class GameManager : MonoBehaviour
         else
             horizontalLeft = false;
 
+        if (horizontalLeft)
+        {
+            Debug.Log($"horizontalLeft Win Condition met: row {row}, col {col}");
+            return horizontalLeft;
+        }
+
         // Check Horizontal Right
         bool horizontalRight = true;
         targetCol = col - N + 1;
 
         if (targetCol >= 0)
         {
-            for (int i = 1; i < N; i++)
+            for (int i = 0; i < N; i++)
                 if (GridDisks[row, col - i] != player)
                 {
                     horizontalRight = false;
@@ -215,8 +233,107 @@ public class GameManager : MonoBehaviour
         else
             horizontalRight = false;
 
+        if (horizontalRight)
+        {
+            Debug.Log($"horizontalRight Win Condition met: row {row}, col {col}");
+            return horizontalRight;
+        }
 
-        return vertical || horizontalLeft || horizontalRight;
+        // Check Diagonal Left
+        bool diagonalLeft = true;
+        targetRow = row - N + 1;
+        targetCol = col - N + 1;
+        if (targetRow >= 0 && targetCol >= 0)
+        {
+            for (int i = 0; i < N; i++)
+                if (GridDisks[row - i, col -i] != player)
+                {
+                    diagonalLeft = false;
+                    break;
+                }
+        }
+        else
+            diagonalLeft = false;
+
+        if (diagonalLeft)
+        {
+            Debug.Log($"diagonalLeft Win Condition met: row {row}, col {col}");
+            return diagonalLeft;
+        }
+
+        // Check Diagonal right
+        bool diagonalRight = true;
+        targetRow = row - N + 1;
+        targetCol = col + N + 1;
+        if (targetRow >= 0 && targetCol < ColumnAmount)
+        {
+            for (int i = 0; i < N; i++)
+                if (GridDisks[row - i, col + i] != player)
+                {
+                    diagonalRight = false;
+                    break;
+                }
+        }
+        else
+            diagonalRight = false;
+
+        if (diagonalRight)
+        {
+            Debug.Log($"diagonalRight Win Condition met: row {row}, col {col}");
+            return diagonalRight;
+        }
+
+        return false;
+
+        //Debug.Log($"Checking win condition: v {vertical}, hl {horizontalLeft}, hr {horizontalRight}, dl {diagonalLeft}, dr {diagonalRight}");
+
+
+
+        //return vertical || horizontalLeft || horizontalRight || diagonalLeft || diagonalRight;
+    }
+
+    private bool CheckWinCondition(int row, int col, int player)
+    {
+        bool vertical = CheckWinConditionVertical(row, col, player);
+        if (vertical)
+        {
+            Debug.Log($"Vertical Win Condition met: row {row}, col {col}");
+            return true;
+        }
+
+        int margin = (int) Math.Ceiling((double) N / 2);
+
+        int MarginColPos = (int) Math.Min(col + margin, ColumnAmount - 1);
+        int MarginColNeg = (int) Math.Max(col - margin, 0);
+
+        int MarginRowPos = (int)Math.Min(row + margin, RowAmount - 1);
+        int MarginRowNeg = (int)Math.Max(row - margin, 0);
+
+        bool flag;
+
+        Debug.Log($"Checking margin box for win condition: MarginRowNeg {MarginRowNeg}, MarginRowPos {MarginRowPos}, MarginColNeg {MarginColNeg}, MarginColPos {MarginColPos} ");
+
+        for (int i= MarginRowPos; i > MarginRowNeg; i--)
+        {
+            for (int j = MarginColPos; j > MarginColNeg; j--)
+            {
+                if( CheckWinConditionHead(i, j, player))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+
+    }
+
+    private bool CheckTieCodition()
+    {
+        bool AllColumnsFull = ColumnCount.Select(x => x == RowAmount).Aggregate((x, y) => x && y);
+        Debug.Log($"Checking tie condition: all columns full? {AllColumnsFull}");
+
+        return AllColumnsFull;
     }
 
     private class TurnManager
@@ -301,6 +418,9 @@ public class GameManager : MonoBehaviour
         int CurrCol;
 
         int CurrRow;
+
+        bool win, tie;
+
         do
         {
             CurrPlayer = tm.CurrPlayerIndex;
@@ -336,8 +456,16 @@ public class GameManager : MonoBehaviour
             Debug.Log($"Disk stopped falling");
             
 
-        } while (!CheckWinCondition(CurrRow, CurrCol, CurrPlayer));
-        Debug.Log($"Player {CurrPlayer+1} Won!");
+        } while (!(win = CheckWinCondition(CurrRow, CurrCol, CurrPlayer)) && !(tie = CheckTieCodition()));
+        if (win)
+        {
+            Debug.Log($"Game Over: Player {CurrPlayer + 1} Won!");
+        }
+        else
+        {
+            Debug.Log($"Game Over: TIE");
+        }
+        
     }
 }
 
