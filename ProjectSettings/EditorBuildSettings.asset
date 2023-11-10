@@ -7,8 +7,8 @@ EditorBuildSettings:
   m_Scenes:
   - enabled: 1
     path: Assets/Scenes/Connect4_Menu.unity
-    guid: 62e87701542674b8a937847572e671c6
+    guid: 08eb2a91d24849d468c65e023513a6e5
   - enabled: 1
     path: Assets/Scenes/Connect4_Game.unity
-    guid: 45c378240e63f82479d98d7af97911e5
+    guid: 6f5ca69072c2a2d49a54de490947372e
   m_configObjects: {}
