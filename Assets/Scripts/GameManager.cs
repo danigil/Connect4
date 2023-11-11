@@ -33,6 +33,8 @@ public class GameManager : MonoBehaviour
     private TurnManager tm;
     private Manager m;
 
+    private UIManager uim;
+
     public static GameManager Instance;
 
     public enum GameType
@@ -183,6 +185,8 @@ public class GameManager : MonoBehaviour
 
     private void InitGame(Scene scene, LoadSceneMode mode)
     {
+        uim = gameObject.AddComponent<UIManager>();
+
         board = GameObject.FindGameObjectWithTag("Board");
         Debug.Log("Board found.");
 
@@ -243,10 +247,12 @@ public class GameManager : MonoBehaviour
         } while (!(win = m.CheckWinCondition(CurrRow, CurrMove, CurrPlayer)) && !(tie = m.CheckTieCodition()));
         if (win)
         {
+            uim.DisplayGameOver(CurrPlayer);
             Debug.Log($"Game Over: Player {CurrPlayer + 1} Won!");
         }
         else
         {
+            uim.DisplayGameOver(-1);
             Debug.Log($"Game Over: TIE");
         }
         
