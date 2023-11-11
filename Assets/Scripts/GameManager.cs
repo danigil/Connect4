@@ -22,21 +22,16 @@ public class GameManager : MonoBehaviour
 
     [SerializeField]
     public uint RowAmount = 6;
-    private static uint RowAmountStatic = 0;
 
     public int N = 4;
-    private static int NStatic;
 
     private GameObject board;
     private static ConnectGameGrid ConnectGameGridObj;
-    private static uint ColumnAmount;
-    
-    private static int[,] GridDisks;
-    private static int[] ColumnCount;
+    private uint ColumnAmount;
 
-    private bool isDropping = false;
 
-    private static TurnManager tm = new TurnManager();
+    private TurnManager tm;
+    private Manager m;
 
     public static GameManager Instance;
 
@@ -55,8 +50,6 @@ public class GameManager : MonoBehaviour
 
     void Awake()
     {
-        RowAmountStatic = RowAmount;
-        NStatic = N;
 
         Disks.Clear();
         Disks.AddRange(Prefabs.Select(prefab =>  prefab.GetComponent<Disk>()).ToList());
@@ -65,51 +58,13 @@ public class GameManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
-    void BoardClick(int ColumnClicked)
+
+    public interface Player
     {
-        Debug.Log($"Column Clicked: {ColumnClicked}");
-        int EmptyCell = ColumnCount[ColumnClicked];
-        if(EmptyCell >= RowAmountStatic || isDropping){
-            // Deny move
-        }
-        else{
-            IDisk spawned = ConnectGameGridObj.Spawn(Prefabs[0].GetComponent<Disk>(), ColumnClicked, EmptyCell);
-            isDropping = true;
-
-            spawned.StoppedFalling += delegate () { isDropping = false; }; ;
-            ColumnCount[ColumnClicked]++;
-
-        }  
+        Task<int> act(Manager m);
     }
 
-    private static bool IsValidMove(int ColumnClicked)
-    {
-        int FilledAmount = ColumnCount[ColumnClicked];
-
-        Debug.Log($"Checking move validity: col {ColumnClicked}, FilledAmount {FilledAmount}, Row Amount {RowAmountStatic}");
-        return FilledAmount < RowAmountStatic;
-    }
-
-    private static IEnumerable<int> RetValidMoves()
-    {
-        return ColumnCount.Select((e, index) => index).Where(x => IsValidMove(x));
-    }
-
-    private static int RetRandCol()
-    {
-        var ValidMoves = RetValidMoves();
-        Debug.Assert(ValidMoves.Count() > 0);
-
-        int RandIndex = new System.Random().Next(0, ValidMoves.Count());
-        return ValidMoves.ElementAt(RandIndex);
-    }
-
-    private interface Player
-    {
-        Task<int> act();
-    }
-
-    private class ComputerPlayer : Player
+    public class ComputerPlayer : Player
     {
         int idx;
         AIDifficulty diff;
@@ -126,31 +81,31 @@ public class GameManager : MonoBehaviour
             this.diff = diff;
         }
 
-        public async Task<int> act()
+        public Task<int> act(Manager m)
         {
             switch (diff)
             {
                 case (AIDifficulty.Random):
-                    return RetRandCol();
+                    return Task.FromResult(m.RetRandCol());
                 case (AIDifficulty.SemiRandom):
-                    IEnumerable<int> ValidMoves = RetValidMoves();
-                    foreach(int move in ValidMoves)
+                    IEnumerable<int> ValidMoves = m.RetValidMoves();
+                    foreach (int move in ValidMoves)
                     {
-                        if (CheckWinCondition(ColumnCount[move], move, idx))
-                            return move;
+                        if (m.CheckWinCondition(m.RetRow(move), move, idx))
+                            return Task.FromResult(move);
                     }
-                    return RetRandCol();
+                    return Task.FromResult(m.RetRandCol());
                 default:
-                    return RetRandCol();
+                    return Task.FromResult(m.RetRandCol());
 
             }
-            
+
         }
     }
 
-    private class LocalPlayer : Player
+    public class LocalPlayer : Player
     {
-        public async Task<int> act()
+        public async Task<int> act(Manager m)
         {
             int ret = -1;
             //AutoResetEvent evt = new AutoResetEvent(false);
@@ -167,221 +122,23 @@ public class GameManager : MonoBehaviour
                 //evt.WaitOne();
                 await tcs.Task;
                 tcs = new TaskCompletionSource<bool>();
-            } while (!IsValidMove(ret));
+            } while (!m.IsValidMove(ret));
             ConnectGameGridObj.ColumnClicked -= handler;
 
             return ret;
         }
     }
-    /*
-    private bool CheckWinFlat(int headPrimary, int headSecondary, bool sub, char mode, int player)
-    {
-        /*
-         * mode = 'v' / 'h' / 'd' - vertical, horizontal, diagonal
-         */ /*
-        bool flag = true;
-        int target;
-        int amount = mode == 'v' ? (int) RowAmount : (int) ColumnAmount;
-        bool inBounds;
-        if (sub)
-        {
-            target = headPrimary - N + 1;
-            targetSecondary = 
-            inBounds = target >= 0;
-        }
-        else
-        {
-            target = headPrimary + N - 1;
-            inBounds = target < amount;
-        }
-
-        if (inBounds)
-        {
-            bool mismatch;
-            for (int i = 1; i < N; i++)
-            {
-                if (row)
-                    mismatch = GridDisks[headPrimary - i, headSecondary] != player;
-                else
-                    mismatch = GridDisks[headPrimari, headSecondary] != player;
-            }
-        }
-
-
-    }
-    */
-
-    private static bool CheckWinConditionVertical(int row, int col, int player)
-    {
-        // Check Vertical
-        bool vertical = true;
-        int targetRow = row - NStatic + 1;
-        if (targetRow >= 0)
-        {
-            for (int i = 1; i < NStatic; i++)
-                if (GridDisks[row - i, col] != player)
-                {
-                    vertical = false;
-                    break;
-                }
-        }
-        else
-            vertical = false;
-
-        return vertical;
-    }
-
-    private static bool CheckWinConditionHead(int row, int col, int player)
-    {
-        /*
-         * Check Win Condition, return -1 if win condition didn't happen yet - otherwise return winner index
-         */
-
-        int targetRow = row - NStatic + 1;
-
-        // Check Horizontal Left
-        bool horizontalLeft = true;
-        int targetCol = col + NStatic - 1;
-
-        if (targetCol < ColumnAmount)
-        {
-            for (int i = 0; i < NStatic; i++)
-                if (GridDisks[row, col+i] != player)
-                {
-                    horizontalLeft = false;
-                    break;
-                }
-        }
-        else
-            horizontalLeft = false;
-
-        if (horizontalLeft)
-        {
-            Debug.Log($"horizontalLeft Win Condition met: row {row}, col {col}");
-            return horizontalLeft;
-        }
-
-        // Check Horizontal Right
-        bool horizontalRight = true;
-        targetCol = col - NStatic + 1;
-
-        if (targetCol >= 0)
-        {
-            for (int i = 0; i < NStatic; i++)
-                if (GridDisks[row, col - i] != player)
-                {
-                    horizontalRight = false;
-                    break;
-                }
-        }
-        else
-            horizontalRight = false;
-
-        if (horizontalRight)
-        {
-            Debug.Log($"horizontalRight Win Condition met: row {row}, col {col}");
-            return horizontalRight;
-        }
-
-        // Check Diagonal Left
-        bool diagonalLeft = true;
-        targetRow = row - NStatic + 1;
-        targetCol = col - NStatic + 1;
-        if (targetRow >= 0 && targetCol >= 0)
-        {
-            for (int i = 0; i < NStatic; i++)
-                if (GridDisks[row - i, col -i] != player)
-                {
-                    diagonalLeft = false;
-                    break;
-                }
-        }
-        else
-            diagonalLeft = false;
-
-        if (diagonalLeft)
-        {
-            Debug.Log($"diagonalLeft Win Condition met: row {row}, col {col}");
-            return diagonalLeft;
-        }
-
-        // Check Diagonal right
-        bool diagonalRight = true;
-        targetRow = row - NStatic + 1;
-        targetCol = col + NStatic + 1;
-        if (targetRow >= 0 && targetCol < ColumnAmount)
-        {
-            for (int i = 0; i < NStatic; i++)
-                if (GridDisks[row - i, col + i] != player)
-                {
-                    diagonalRight = false;
-                    break;
-                }
-        }
-        else
-            diagonalRight = false;
-
-        if (diagonalRight)
-        {
-            Debug.Log($"diagonalRight Win Condition met: row {row}, col {col}");
-            return diagonalRight;
-        }
-
-        return false;
-
-        //Debug.Log($"Checking win condition: v {vertical}, hl {horizontalLeft}, hr {horizontalRight}, dl {diagonalLeft}, dr {diagonalRight}");
-
-
-
-        //return vertical || horizontalLeft || horizontalRight || diagonalLeft || diagonalRight;
-    }
-
-    private static bool CheckWinCondition(int row, int col, int player)
-    {
-        bool vertical = CheckWinConditionVertical(row, col, player);
-        if (vertical)
-        {
-            Debug.Log($"Vertical Win Condition met: row {row}, col {col}");
-            return true;
-        }
-
-        int margin = (int) Math.Ceiling((double) NStatic / 2);
-
-        int MarginColPos = (int) Math.Min(col + margin, ColumnAmount - 1);
-        int MarginColNeg = (int) Math.Max(col - margin, 0);
-
-        int MarginRowPos = (int)Math.Min(row + margin, RowAmountStatic - 1);
-        int MarginRowNeg = (int)Math.Max(row - margin, 0);
-
-        bool flag;
-
-        Debug.Log($"Checking margin box for win condition: MarginRowNeg {MarginRowNeg}, MarginRowPos {MarginRowPos}, MarginColNeg {MarginColNeg}, MarginColPos {MarginColPos} ");
-
-        for (int i= MarginRowPos; i > MarginRowNeg; i--)
-        {
-            for (int j = MarginColPos; j > MarginColNeg; j--)
-            {
-                if( CheckWinConditionHead(i, j, player))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-
-    }
-
-    private bool CheckTieCodition()
-    {
-        bool AllColumnsFull = ColumnCount.Select(x => x == RowAmount).Aggregate((x, y) => x && y);
-        Debug.Log($"Checking tie condition: all columns full? {AllColumnsFull}");
-
-        return AllColumnsFull;
-    }
 
     private class TurnManager
     {
+        private List<Player> Players = new List<Player>();
+
+        public TurnManager(List<Player> Players)
+        {
+            this.Players.Clear();
+            this.Players.AddRange(Players);
+        }
+
         public int CurrPlayerIndex { get; set; }
         private int PlayerAmount = 0;
         public void Reset()
@@ -391,12 +148,12 @@ public class GameManager : MonoBehaviour
 
             Debug.Assert(PlayerAmount > 0);
         }
-        public async Task<int> NextTurn()
+        public async Task<int> NextTurn(Manager m)
         {
             Debug.Assert(0 <= CurrPlayerIndex && CurrPlayerIndex < Players.Count);
 
             Player CurrPlayer = Players[CurrPlayerIndex];
-            int CurrMove = await CurrPlayer.act();
+            int CurrMove = await CurrPlayer.act(m);
 
             CurrPlayerIndex++;
             CurrPlayerIndex %= PlayerAmount;
@@ -404,7 +161,6 @@ public class GameManager : MonoBehaviour
             return CurrMove;
         }
     }
-
 
     public void StartGame(GameType gt)
     {
@@ -415,6 +171,7 @@ public class GameManager : MonoBehaviour
         {
             Players.Add(new ComputerPlayer(0, AIDifficulty.SemiRandom));
             Players.Add(new ComputerPlayer(1, AIDifficulty.SemiRandom));
+            //Players.Add(new ComputerPlayer(2, AIDifficulty.SemiRandom));
         }
         else if (gt == GameType.LocalPVP)
         {
@@ -442,9 +199,14 @@ public class GameManager : MonoBehaviour
         ColumnAmount = (uint)board.GetComponentInChildren<GridLayoutGroup>().constraintCount;
         Debug.Log($"Grid column size: {ColumnAmount}");
 
+        /*
         GridDisks = new int[RowAmountStatic, ColumnAmount];
         for (int i = 0; i < RowAmountStatic * ColumnAmount; i++) GridDisks[i % RowAmountStatic, i / RowAmountStatic] = -1;
         ColumnCount = new int[ColumnAmount];
+        */
+
+        m = new Manager(N, (int)RowAmount, (int)ColumnAmount);
+        tm = new TurnManager(Players);
 
         GameLoop();
         //Task.Run(() => GameLoop());
@@ -459,8 +221,7 @@ public class GameManager : MonoBehaviour
 
         tm.Reset();
         int CurrPlayer = 0;
-        int CurrCol;
-
+        int CurrMove;
         int CurrRow;
 
         bool win, tie;
@@ -468,15 +229,13 @@ public class GameManager : MonoBehaviour
         do
         {
             CurrPlayer = tm.CurrPlayerIndex;
+            CurrMove = await tm.NextTurn(m);
 
-            CurrCol = await tm.NextTurn();
-            CurrRow = ColumnCount[CurrCol]++;
-
-            GridDisks[CurrRow, CurrCol] = CurrPlayer;
+            CurrRow = m.PerformMove(CurrMove, CurrPlayer);
             
-            Debug.Log($"Player {CurrPlayer+1} move: Col {CurrCol} Row {CurrRow}");
+            Debug.Log($"Player {CurrPlayer+1} move: Col {CurrMove} Row {CurrRow}");
             
-            IDisk spawned = ConnectGameGridObj.Spawn(Disks[CurrPlayer], CurrCol, CurrRow);
+            IDisk spawned = ConnectGameGridObj.Spawn(Disks[CurrPlayer], CurrMove, CurrRow);
 
             Debug.Log($"Disk Spawned");
 
@@ -500,7 +259,7 @@ public class GameManager : MonoBehaviour
             Debug.Log($"Disk stopped falling");
             
 
-        } while (!(win = CheckWinCondition(CurrRow, CurrCol, CurrPlayer)) && !(tie = CheckTieCodition()));
+        } while (!(win = m.CheckWinCondition(CurrRow, CurrMove, CurrPlayer)) && !(tie = m.CheckTieCodition()));
         if (win)
         {
             Debug.Log($"Game Over: Player {CurrPlayer + 1} Won!");
@@ -513,4 +272,225 @@ public class GameManager : MonoBehaviour
     }
 }
 
+public class Manager
+{
+    private int RowAmount, ColumnAmount;
 
+    private int N;
+    private int[,] GridDisks;
+    private int[] ColumnCount;
+
+    public Manager(int N, int RowAmount, int ColumnAmount)
+    {
+        this.N = N;
+        this.RowAmount = RowAmount;
+        this.ColumnAmount = ColumnAmount;
+
+        GridDisks = new int[RowAmount, ColumnAmount];
+        for (int i = 0; i < RowAmount * ColumnAmount; i++) GridDisks[i % RowAmount, i / RowAmount] = -1;
+        ColumnCount = new int[ColumnAmount];
+    }
+
+    public int RetRow(int col)
+    {
+        return ColumnCount[col];
+    }
+
+    public bool IsValidMove(int ColumnClicked)
+    {
+        int FilledAmount = ColumnCount[ColumnClicked];
+
+        Debug.Log($"Checking move validity: col {ColumnClicked}, FilledAmount {FilledAmount}, Row Amount {RowAmount}");
+        return FilledAmount < RowAmount;
+    }
+
+    public IEnumerable<int> RetValidMoves()
+    {
+        return ColumnCount.Select((e, index) => index).Where(x => IsValidMove(x));
+    }
+
+    public int RetRandCol()
+    {
+        var ValidMoves = RetValidMoves();
+        Debug.Assert(ValidMoves.Count() > 0);
+
+        int RandIndex = new System.Random().Next(0, ValidMoves.Count());
+        return ValidMoves.ElementAt(RandIndex);
+    }
+
+    private bool CheckWinConditionVertical(int row, int col, int player)
+    {
+        // Check Vertical
+        bool vertical = true;
+        int targetRow = row - N + 1;
+        if (targetRow >= 0)
+        {
+            for (int i = 1; i < N; i++)
+                if (GridDisks[row - i, col] != player)
+                {
+                    vertical = false;
+                    break;
+                }
+        }
+        else
+            vertical = false;
+
+        return vertical;
+    }
+
+    private bool CheckWinConditionHead(int row, int col, int player)
+    {
+        /*
+         * Check Win Condition, return -1 if win condition didn't happen yet - otherwise return winner index
+         */
+
+        int targetRow = row - N + 1;
+
+        // Check Horizontal Left
+        bool horizontalLeft = true;
+        int targetCol = col + N - 1;
+
+        if (targetCol < ColumnAmount)
+        {
+            for (int i = 0; i < N; i++)
+                if (GridDisks[row, col + i] != player)
+                {
+                    horizontalLeft = false;
+                    break;
+                }
+        }
+        else
+            horizontalLeft = false;
+
+        if (horizontalLeft)
+        {
+            Debug.Log($"horizontalLeft Win Condition met: row {row}, col {col}");
+            return horizontalLeft;
+        }
+
+        // Check Horizontal Right
+        bool horizontalRight = true;
+        targetCol = col - N + 1;
+
+        if (targetCol >= 0)
+        {
+            for (int i = 0; i < N; i++)
+                if (GridDisks[row, col - i] != player)
+                {
+                    horizontalRight = false;
+                    break;
+                }
+        }
+        else
+            horizontalRight = false;
+
+        if (horizontalRight)
+        {
+            Debug.Log($"horizontalRight Win Condition met: row {row}, col {col}");
+            return horizontalRight;
+        }
+
+        // Check Diagonal Left
+        bool diagonalLeft = true;
+        targetRow = row - N + 1;
+        targetCol = col - N + 1;
+        if (targetRow >= 0 && targetCol >= 0)
+        {
+            for (int i = 0; i < N; i++)
+                if (GridDisks[row - i, col - i] != player)
+                {
+                    diagonalLeft = false;
+                    break;
+                }
+        }
+        else
+            diagonalLeft = false;
+
+        if (diagonalLeft)
+        {
+            Debug.Log($"diagonalLeft Win Condition met: row {row}, col {col}");
+            return diagonalLeft;
+        }
+
+        // Check Diagonal right
+        bool diagonalRight = true;
+        targetRow = row - N + 1;
+        targetCol = col + N + 1;
+        if (targetRow >= 0 && targetCol < ColumnAmount)
+        {
+            for (int i = 0; i < N; i++)
+                if (GridDisks[row - i, col + i] != player)
+                {
+                    diagonalRight = false;
+                    break;
+                }
+        }
+        else
+            diagonalRight = false;
+
+        if (diagonalRight)
+        {
+            Debug.Log($"diagonalRight Win Condition met: row {row}, col {col}");
+            return diagonalRight;
+        }
+
+        return false;
+
+        //Debug.Log($"Checking win condition: v {vertical}, hl {horizontalLeft}, hr {horizontalRight}, dl {diagonalLeft}, dr {diagonalRight}");
+
+
+
+        //return vertical || horizontalLeft || horizontalRight || diagonalLeft || diagonalRight;
+    }
+
+    public bool CheckWinCondition(int row, int col, int player)
+    {
+        bool vertical = CheckWinConditionVertical(row, col, player);
+        if (vertical)
+        {
+            Debug.Log($"Vertical Win Condition met: row {row}, col {col}");
+            return true;
+        }
+
+        int margin = (int)Math.Ceiling((double)N / 2);
+
+        int MarginColPos = (int)Math.Min(col + margin, ColumnAmount - 1);
+        int MarginColNeg = (int)Math.Max(col - margin, 0);
+
+        int MarginRowPos = (int)Math.Min(row + margin, RowAmount - 1);
+        int MarginRowNeg = (int)Math.Max(row - margin, 0);
+
+        Debug.Log($"Checking margin box for win condition: MarginRowNeg {MarginRowNeg}, MarginRowPos {MarginRowPos}, MarginColNeg {MarginColNeg}, MarginColPos {MarginColPos} ");
+
+        for (int i = MarginRowPos; i > MarginRowNeg; i--)
+        {
+            for (int j = MarginColPos; j > MarginColNeg; j--)
+            {
+                if (CheckWinConditionHead(i, j, player))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+
+    }
+
+    public bool CheckTieCodition()
+    {
+        bool AllColumnsFull = ColumnCount.Select(x => x == RowAmount).Aggregate((x, y) => x && y);
+        Debug.Log($"Checking tie condition: all columns full? {AllColumnsFull}");
+
+        return AllColumnsFull;
+    }
+
+    public int PerformMove(int move, int player)
+    {
+        int row = ColumnCount[move]++;
+        GridDisks[row, move] = player;
+
+        return row;
+    }
+
+}
