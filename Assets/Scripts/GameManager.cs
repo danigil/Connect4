@@ -108,18 +108,15 @@ public class GameManager : MonoBehaviour
         public async Task<int> act(Manager m)
         {
             int ret = -1;
-            //AutoResetEvent evt = new AutoResetEvent(false);
             TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
             Action<int> handler = (col) => {
                 ret = col;
-                //evt.Set();
                 tcs.SetResult(true);
             };
 
             ConnectGameGridObj.ColumnClicked += handler;
             do
             {
-                //evt.WaitOne();
                 await tcs.Task;
                 tcs = new TaskCompletionSource<bool>();
             } while (!m.IsValidMove(ret));
@@ -191,28 +188,14 @@ public class GameManager : MonoBehaviour
 
 
         ConnectGameGridObj = board.GetComponent<ConnectGameGrid>();
-        /*
-        ConnectGameGridObj.ColumnClicked += BoardClick;
-        Debug.Log("Click event listener added.");
-        */
 
         ColumnAmount = (uint)board.GetComponentInChildren<GridLayoutGroup>().constraintCount;
         Debug.Log($"Grid column size: {ColumnAmount}");
-
-        /*
-        GridDisks = new int[RowAmountStatic, ColumnAmount];
-        for (int i = 0; i < RowAmountStatic * ColumnAmount; i++) GridDisks[i % RowAmountStatic, i / RowAmountStatic] = -1;
-        ColumnCount = new int[ColumnAmount];
-        */
 
         m = new Manager(N, (int)RowAmount, (int)ColumnAmount);
         tm = new TurnManager(Players);
 
         GameLoop();
-        //Task.Run(() => GameLoop());
-
-        //Thread _thread = new Thread(GameLoop);
-        //_thread.Start();
     }
 
     private async void GameLoop()
@@ -243,7 +226,6 @@ public class GameManager : MonoBehaviour
             
             AutoResetEvent evt = new AutoResetEvent(false);
             Action handler = () => {
-                //evt.Set();
                 tcs.SetResult(true);
             };
             
@@ -251,7 +233,6 @@ public class GameManager : MonoBehaviour
             Debug.Log($"Waiting for disk to stop falling");
             
             spawned.StoppedFalling += handler;
-            //evt.WaitOne();
             await tcs.Task;
             spawned.StoppedFalling -= handler;
             
@@ -277,7 +258,7 @@ public class Manager
     private int RowAmount, ColumnAmount;
 
     private int N;
-    private int[,] GridDisks;
+    public int[,] GridDisks { get; }
     private int[] ColumnCount;
 
     public Manager(int N, int RowAmount, int ColumnAmount)
@@ -287,8 +268,15 @@ public class Manager
         this.ColumnAmount = ColumnAmount;
 
         GridDisks = new int[RowAmount, ColumnAmount];
-        for (int i = 0; i < RowAmount * ColumnAmount; i++) GridDisks[i % RowAmount, i / RowAmount] = -1;
         ColumnCount = new int[ColumnAmount];
+
+        this.Reset();
+    }
+
+    public void Reset()
+    {
+        for (int i = 0; i < RowAmount * ColumnAmount; i++) GridDisks[i % RowAmount, i / RowAmount] = -1;
+        for (int i = 0; i < ColumnAmount; i++) ColumnCount[i] = 0;
     }
 
     public int RetRow(int col)
@@ -318,7 +306,7 @@ public class Manager
         return ValidMoves.ElementAt(RandIndex);
     }
 
-    private bool CheckWinConditionVertical(int row, int col, int player)
+    public bool CheckWinConditionVertical(int row, int col, int player)
     {
         // Check Vertical
         bool vertical = true;
@@ -338,109 +326,86 @@ public class Manager
         return vertical;
     }
 
-    private bool CheckWinConditionHead(int row, int col, int player)
+    public bool CheckWinConditionHorizontal(int row, int col, int player, bool left)
+    {
+        bool horizontal = true;
+        int targetCol = (left) ? col + N - 1 : col - N + 1;
+
+        if ((left) ? targetCol < ColumnAmount : targetCol>=0)
+        {
+            for (int i = 0; i < N; i++)
+                if (GridDisks[row, (left) ? col + i : col - i] != player)
+                {
+                    horizontal = false;
+                    break;
+                }
+        }
+        else
+            horizontal = false;
+
+        return horizontal;
+    }
+
+    public bool CheckWinConditionDiagonal(int row, int col, int player, bool left)
+    {
+        int idx;
+        bool diagonal = true;
+        int targetRow = row - N + 1 ;
+
+        int targetCol = (left) ? col + N - 1 : col - N + 1;
+        bool InBounds = (left) ? targetCol < ColumnAmount : targetCol >= 0;
+
+        if (targetRow >= 0 && InBounds)
+        {
+            for (int i = 0; i < N; i++) {
+                idx = (left) ? col + i : col - i;
+                if (GridDisks[row - i, idx] != player)
+                {
+                    diagonal = false;
+                    break;
+                }
+            }
+        }
+        else
+            diagonal = false;
+
+        return diagonal;
+    }
+
+    public bool CheckWinConditionHead(int row, int col, int player)
     {
         /*
          * Check Win Condition, return -1 if win condition didn't happen yet - otherwise return winner index
          */
 
-        int targetRow = row - N + 1;
-
-        // Check Horizontal Left
-        bool horizontalLeft = true;
-        int targetCol = col + N - 1;
-
-        if (targetCol < ColumnAmount)
-        {
-            for (int i = 0; i < N; i++)
-                if (GridDisks[row, col + i] != player)
-                {
-                    horizontalLeft = false;
-                    break;
-                }
-        }
-        else
-            horizontalLeft = false;
-
-        if (horizontalLeft)
+        if (CheckWinConditionHorizontal(row, col, player, true))
         {
             Debug.Log($"horizontalLeft Win Condition met: row {row}, col {col}");
-            return horizontalLeft;
+            return true;
         }
 
-        // Check Horizontal Right
-        bool horizontalRight = true;
-        targetCol = col - N + 1;
 
-        if (targetCol >= 0)
-        {
-            for (int i = 0; i < N; i++)
-                if (GridDisks[row, col - i] != player)
-                {
-                    horizontalRight = false;
-                    break;
-                }
-        }
-        else
-            horizontalRight = false;
-
-        if (horizontalRight)
+        if (CheckWinConditionHorizontal(row, col, player, false))
         {
             Debug.Log($"horizontalRight Win Condition met: row {row}, col {col}");
-            return horizontalRight;
+            return true;
         }
 
-        // Check Diagonal Left
-        bool diagonalLeft = true;
-        targetRow = row - N + 1;
-        targetCol = col - N + 1;
-        if (targetRow >= 0 && targetCol >= 0)
-        {
-            for (int i = 0; i < N; i++)
-                if (GridDisks[row - i, col - i] != player)
-                {
-                    diagonalLeft = false;
-                    break;
-                }
-        }
-        else
-            diagonalLeft = false;
-
-        if (diagonalLeft)
+        
+        if (CheckWinConditionDiagonal(row, col, player, true))
         {
             Debug.Log($"diagonalLeft Win Condition met: row {row}, col {col}");
-            return diagonalLeft;
+            return true;
         }
-
-        // Check Diagonal right
-        bool diagonalRight = true;
-        targetRow = row - N + 1;
-        targetCol = col + N + 1;
-        if (targetRow >= 0 && targetCol < ColumnAmount)
-        {
-            for (int i = 0; i < N; i++)
-                if (GridDisks[row - i, col + i] != player)
-                {
-                    diagonalRight = false;
-                    break;
-                }
-        }
-        else
-            diagonalRight = false;
-
-        if (diagonalRight)
+        
+        
+        if (CheckWinConditionDiagonal(row, col, player, false))
         {
             Debug.Log($"diagonalRight Win Condition met: row {row}, col {col}");
-            return diagonalRight;
+            return true;
         }
 
         return false;
-
-        //Debug.Log($"Checking win condition: v {vertical}, hl {horizontalLeft}, hr {horizontalRight}, dl {diagonalLeft}, dr {diagonalRight}");
-
-
-
-        //return vertical || horizontalLeft || horizontalRight || diagonalLeft || diagonalRight;
     }
 
     public bool CheckWinCondition(int row, int col, int player)
@@ -462,9 +427,9 @@ public class Manager
 
         Debug.Log($"Checking margin box for win condition: MarginRowNeg {MarginRowNeg}, MarginRowPos {MarginRowPos}, MarginColNeg {MarginColNeg}, MarginColPos {MarginColPos} ");
 
-        for (int i = MarginRowPos; i > MarginRowNeg; i--)
+        for (int i = MarginRowPos; i >= MarginRowNeg; i--)
         {
-            for (int j = MarginColPos; j > MarginColNeg; j--)
+            for (int j = MarginColPos; j >= MarginColNeg; j--)
             {
                 if (CheckWinConditionHead(i, j, player))
                 {
