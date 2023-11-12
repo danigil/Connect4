@@ -34,6 +34,7 @@ public class GameManager : MonoBehaviour
     private Manager m;
 
     private UIManager uim;
+    private AudioManager am;
 
     public static GameManager Instance;
 
@@ -52,12 +53,20 @@ public class GameManager : MonoBehaviour
 
     void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+
 
         Disks.Clear();
         Disks.AddRange(Prefabs.Select(prefab =>  prefab.GetComponent<Disk>()).ToList());
 
-        Instance = this;
-        DontDestroyOnLoad(gameObject);
+        am = gameObject.GetComponent<AudioManager>();
     }
 
 
@@ -163,7 +172,7 @@ public class GameManager : MonoBehaviour
 
     public void StartGame(GameType gt)
     {
-        SceneManager.LoadScene("Connect4_Game");
+        SceneManager.LoadScene("Connect4_Game", LoadSceneMode.Single);
         Debug.Log($"Starting a new game. GameType:{gt}");
         Players.Clear();
         if (gt == GameType.COM)
@@ -185,7 +194,10 @@ public class GameManager : MonoBehaviour
 
     private void InitGame(Scene scene, LoadSceneMode mode)
     {
-        uim = gameObject.AddComponent<UIManager>();
+        SceneManager.sceneLoaded -= InitGame;
+
+        if (uim == null)
+            uim = gameObject.AddComponent<UIManager>();
 
         board = GameObject.FindGameObjectWithTag("Board");
         Debug.Log("Board found.");
@@ -231,6 +243,7 @@ public class GameManager : MonoBehaviour
             AutoResetEvent evt = new AutoResetEvent(false);
             Action handler = () => {
                 tcs.SetResult(true);
+                am.PlaySFX("drop");
             };
             
 
@@ -255,9 +268,18 @@ public class GameManager : MonoBehaviour
             uim.DisplayGameOver(-1);
             Debug.Log($"Game Over: TIE");
         }
-        
+
+        Cleanup();
+    }
+
+    private void Cleanup()
+    {
+        Destroy(uim);
+        uim = null;
     }
 }
+
+
 
 public class Manager
 {
