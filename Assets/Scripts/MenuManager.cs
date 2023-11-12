@@ -46,12 +46,14 @@ public class MenuManager : MonoBehaviour
         }
 
 
-        if (CloseOnAwake)
+        foreach(GameObject Menu in GameObject.FindGameObjectsWithTag("Menu"))
         {
-            foreach(GameObject Menu in GameObject.FindGameObjectsWithTag("Menu"))
-            {
-                Menu.SetActive(false);
-            }
+            Menu.SetActive(false);
+        }
+
+        if(SceneManager.GetActiveScene().name == "Connect4_Menu")
+        {
+            ShowMenu("Connect4Menu");
         }
     }
 
@@ -61,10 +63,17 @@ public class MenuManager : MonoBehaviour
         SceneManager.LoadScene("Connect4_Menu");
     }
 
-    public void ShowChooseMenu()
+    public void ShowMenu(string MenuName)
     {
-        Menus["Connect4GameOver"].SetActive(false);
-        Menus["Connect4ChoosePlayer"].SetActive(true);
+        foreach (KeyValuePair<string, GameObject> menu in Menus)
+        {
+            if (menu.Key == MenuName)
+                continue;
+
+            menu.Value.SetActive(false);
+        }
+
+        Menus[MenuName].SetActive(true);
     }
 
     public void CloseWindow(Button b)
@@ -87,9 +96,13 @@ public class MenuManager : MonoBehaviour
         {
             gm.StartGame(GameManager.GameType.LocalPVP);
         }
-        else if (ChosenGameMode.Contains("com"))
+        else if (ChosenGameMode.Contains("cvc"))
         {
             gm.StartGame(GameManager.GameType.COM);
+        }
+        else if (ChosenGameMode.Contains("pvc"))
+        {
+            gm.StartGame(GameManager.GameType.PVC);
         }
         else
         {

@@ -19,6 +19,20 @@ public class AudioManager : MonoBehaviour
         //foreach (Button b in GameObject.FindObjectsOfType<Button>()) b.onClick.AddListener(() => { MouseClickSound(); });
     }
 
+    public void SetSFX(float level)
+    {
+        float val = level;
+        SFX.volume = val;
+    }
+
+    public void SetMusic(float level)
+    {
+        float val = Mathf.Log10(level) * 20;
+        val = level;
+        Debug.Log($"Music slider, {val}");
+        Music.volume = val;
+    }
+
     public void MouseClickSound()
     {
         PlaySFX("click");

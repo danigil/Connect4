@@ -34,14 +34,15 @@ public class GameManager : MonoBehaviour
     private Manager m;
 
     private UIManager uim;
-    private AudioManager am;
+    public AudioManager am;
 
     public static GameManager Instance;
 
     public enum GameType
     {
         COM,
-        LocalPVP
+        LocalPVP,
+        PVC
     }
 
     public enum AIDifficulty
@@ -177,7 +178,8 @@ public class GameManager : MonoBehaviour
         Players.Clear();
         if (gt == GameType.COM)
         {
-            Players.Add(new ComputerPlayer(0, AIDifficulty.SemiRandom));
+            //Players.Add(new ComputerPlayer(0, AIDifficulty.SemiRandom));
+            Players.Add(new ComputerPlayer(1, AIDifficulty.SemiRandom));
             Players.Add(new ComputerPlayer(1, AIDifficulty.SemiRandom));
             //Players.Add(new ComputerPlayer(2, AIDifficulty.SemiRandom));
         }
@@ -185,6 +187,11 @@ public class GameManager : MonoBehaviour
         {
             Players.Add(new LocalPlayer());
             Players.Add(new LocalPlayer());
+        }
+        else if (gt == GameType.PVC)
+        {
+            Players.Add(new LocalPlayer());
+            Players.Add(new ComputerPlayer(1, AIDifficulty.SemiRandom));
         }
 
         Debug.Assert(Players.Count <= Prefabs.Count);
@@ -198,6 +205,7 @@ public class GameManager : MonoBehaviour
 
         if (uim == null)
             uim = gameObject.AddComponent<UIManager>();
+        
 
         board = GameObject.FindGameObjectWithTag("Board");
         Debug.Log("Board found.");
@@ -269,7 +277,7 @@ public class GameManager : MonoBehaviour
             Debug.Log($"Game Over: TIE");
         }
 
-        Cleanup();
+        
     }
 
     private void Cleanup()
