@@ -20,7 +20,7 @@ public class UIManager : MonoBehaviour
     private GameObject SFXToggle;
     private GameObject MusicToggle;
 
-    private void Awake()
+    public void Awake()
     {
         Debug.Log("UIManager awoken");
 

@@ -536,6 +536,10 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 241855668}
     m_Modifications:
+    - target: {fileID: 289767183236230850, guid: fb7279a486fa0ff41960c17ec9788ecb, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: 2d020849fbd56b6458aa51b98118744d, type: 3}
     - target: {fileID: 742129799936668624, guid: fb7279a486fa0ff41960c17ec9788ecb, type: 3}
       propertyPath: m_AnchorMax.x
       value: 0
@@ -644,6 +648,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: SFXToggle
       objectReference: {fileID: 0}
+    - target: {fileID: 1920323596548866178, guid: fb7279a486fa0ff41960c17ec9788ecb, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: fc9d30ae5b20aa849802b2380ed7634d, type: 3}
     - target: {fileID: 3340952239985266950, guid: fb7279a486fa0ff41960c17ec9788ecb, type: 3}
       propertyPath: m_AnchorMax.x
       value: 0

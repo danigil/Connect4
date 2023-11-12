@@ -720,7 +720,7 @@ MonoBehaviour:
   - {fileID: 2954962141767432994, guid: 298ef72a6257245069ad0952492ef4dd, type: 3}
   - {fileID: 2954962141767432994, guid: f25c61d31dd62894e8c91fa412847eb3, type: 3}
   RowAmount: 6
-  N: 2
+  N: 4
   am: {fileID: 0}
 --- !u!4 &1386033779
 Transform:

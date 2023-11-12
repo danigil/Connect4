@@ -205,6 +205,8 @@ public class GameManager : MonoBehaviour
 
         if (uim == null)
             uim = gameObject.AddComponent<UIManager>();
+        else
+            uim.Awake();
         
 
         board = GameObject.FindGameObjectWithTag("Board");
