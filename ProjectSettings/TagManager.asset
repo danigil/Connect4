@@ -7,6 +7,14 @@ TagManager:
   - MenuRadioButton
   - MenuPlayButton
   - Board
+  - GameOverText
+  - SFX
+  - Music
+  - GameOverMenu
+  - CloseButton
+  - Menu
+  - MusicToggle
+  - SFXToggle
   layers:
   - Default
   - TransparentFX

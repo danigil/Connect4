@@ -15,8 +15,6 @@ public class AudioManager : MonoBehaviour
     {
         SFX = GameObject.FindGameObjectWithTag("SFX").GetComponent<AudioSource>();
         Music = GameObject.FindGameObjectWithTag("Music").GetComponent<AudioSource>();
-
-        //foreach (Button b in GameObject.FindObjectsOfType<Button>()) b.onClick.AddListener(() => { MouseClickSound(); });
     }
 
     public void SetSFX(float level)

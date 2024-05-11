@@ -178,10 +178,10 @@ public class GameManager : MonoBehaviour
         Players.Clear();
         if (gt == GameType.COM)
         {
-            //Players.Add(new ComputerPlayer(0, AIDifficulty.SemiRandom));
-            Players.Add(new ComputerPlayer(1, AIDifficulty.SemiRandom));
+            Players.Add(new ComputerPlayer(0, AIDifficulty.SemiRandom));
             Players.Add(new ComputerPlayer(1, AIDifficulty.SemiRandom));
             //Players.Add(new ComputerPlayer(2, AIDifficulty.SemiRandom));
+            //Players.Add(new ComputerPlayer(3, AIDifficulty.SemiRandom));
         }
         else if (gt == GameType.LocalPVP)
         {
